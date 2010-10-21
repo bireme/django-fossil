@@ -1,0 +1,74 @@
+This is a pluggable application for projects based on Django framework and its ORM.
+
+This library stores fossilized revissions of objects and supports fossilized foreign keys.
+
+INSTALLING
+----------
+
+Just run "python setup.py install" or just put "fossil" package in PYTHONPATH.
+
+HOW TO USE IT ON YOUR PROJECT
+-----------------------------
+
+1. Add 'fossil' to INSTALLED_APPS of settings.py of your project
+
+2. You can use FossilForeignKey fields as you can see below:
+
+    from fossil.fields import FossilForeignKey
+    
+    class Supplier(models.Model):
+        name = models.CharField(max_length=100)
+        ...
+
+    class Purchase(models.Model):
+        ...
+        supplier = FossilForeignKey(Supplier, null=True, blank=True)
+
+The model classe "Purchase" will work as usual, you can set Supplier object to the field
+'supplier' but inside it will make a fossil revision for current version of this supplier
+and the relation will be made with it. Even if this object is deleted in the future, the
+relation will keep here with current data.
+
+3. You can create and/or list manually fossils for objects, like below:
+
+    from fossil.models import Fossil
+
+    # Returns a new or existing fossil for object
+    new_fossil = Fossil.objects.create_for_object(my_supplier)
+
+    # Returns all fossils for a given object, ordered by creation date
+    list_of_fossils = Fossil.objects.fossils_of_object(qualquer_objeto)
+
+HOW IT WORKS
+------------
+
+Django-fossil is stupdly simple. You don't need neither register a model class or inherit
+anyone.
+
+It will make a fossil for a given object basing on its serialization and will not duplicate
+revisions for object with same values.
+
+The serialization will be made using Django JSON serialization feature, but you can customize
+it implementing methods to serialize to string and deserialize to object, like below:
+
+    from django.utils import simplejson
+    from fossil.fields import FossilForeignKey
+
+    class SupplierManager(models.Manager):
+        def deserialize_for_fossil(self, data):
+            json = simplejson.loads(data)
+
+            return Supplier(name=json['name'])
+    
+    class Supplier(models.Model):
+        objects = SupplierManager()
+        name = models.CharField(max_length=100)
+        
+        def serialize_for_fossil(self):
+            return simplejson.dumps({'name': self.name})
+
+As you can see above, there are two methods, one to serialize and one to deserialize. The first
+one is as part of Model class and the second one is part of Manager class.
+
+So you can use your creativity to make them as you want.
+
