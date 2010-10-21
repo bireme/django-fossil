@@ -1,6 +1,6 @@
 This is a pluggable application for projects based on Django framework and its ORM.
 
-This library stores fossilized revissions of objects and supports fossilized foreign keys.
+This library stores fossilized revisions of objects and supports fossilized foreign keys.
 
 INSTALLING
 ----------
