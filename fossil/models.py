@@ -7,9 +7,9 @@ from django.contrib.contenttypes.generic import GenericForeignKey
 
 class FossilManager(models.Manager):
     def create_for_object(self, obj):
-        try:
+        if hasattr(obj, 'serialize_for_fossil'):
             serialized = obj.serialize_for_fossil()
-        except AttributeError:
+        else:
             serialized = serialize('json', [obj])
 
         hash_key = hashlib.sha256(serialized).hexdigest()
@@ -43,6 +43,8 @@ class Fossil(models.Model):
     content_type = models.ForeignKey(ContentType)
     object_id = models.TextField()
     object = GenericForeignKey()
+    is_most_recent = models.BooleanField(blank=True, default=True, db_index=True)
+    previous_revision = models.ForeignKey('self', null=True, blank=True)
 
     def __unicode__(self):
         return self.display_text
@@ -57,9 +59,42 @@ class Fossil(models.Model):
         if isinstance(data, unicode):
             data = data.encode("utf8")
 
-        try:
-            return self.content_type.model_class.objects.deserialize_for_fossil(data)
-        except AttributeError:
+        manager = self.content_type.model_class().objects
+        if hasattr(manager, 'deserialize_for_fossil'):
+            return manager.deserialize_for_fossil(data)
+        else:
             return list(deserialize('json', data))[0]
     
+# SIGNALS
+from django.db.models import signals
+
+def fossil_post_save(sender, instance, signal, **kwargs):
+    # Updates old revisions setting them with "is_most_recent" as False
+    if instance.is_most_recent:
+        Fossil.objects.filter(
+                content_type=instance.content_type,
+                object_id=instance.object_id,
+                creation__lt=instance.creation,
+                is_most_recent=True,
+                ).exclude(
+                        pk=instance.pk,
+                        ).update(
+                                is_most_recent=False,
+                                )
+
+    # Gets "previous_revision" from last one
+    if not instance.previous_revision:
+        try:
+            instance.previous_revision = Fossil.objects.filter(
+                content_type=instance.content_type,
+                object_id=instance.object_id,
+                creation__lt=instance.creation,
+                ).exclude(
+                    pk=instance.pk,
+                    ).latest('creation')
+            instance.save()
+        except Fossil.DoesNotExist:
+            pass
+
+signals.post_save.connect(fossil_post_save, sender=Fossil)
 

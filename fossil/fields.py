@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core import serializers
 from django.forms import ModelChoiceField, Select
+from django.utils import simplejson
 
 from fossil.models import Fossil
 
@@ -87,33 +88,83 @@ class FossilForeignKey(ForeignKey):
         if self.rel.field_name is None:
             self.rel.field_name = cls._meta.pk.name
 
+class DictKeyAttribute(dict):
+    """
+    Dictionary that allows you access dict key values as attributes
+    """
+    def __getattr__(self, name):
+        try:
+            value = self[name]
+        except KeyError:
+            raise AttributeError
+
+        if isinstance(value, dict):
+            value = DictKeyAttribute(value)
+
+        return value
+
 class FossilProxy(object):
     fossil = None
+    _object_fossil = None
 
     def __init__(self, fossil=None):
-        self.fossil = fossil
+        if isinstance(fossil, (Fossil, dict)):
+            self.fossil = fossil
+        elif isinstance(fossil, basestring):
+            self.fossil = simplejson.loads(fossil)
+        else:
+            raise Exception('Invalid fossil source (should be a Fossil instance, JSON string or dictionary)')
 
     @property
     def object_fossil(self):
-        if not hasattr(self, '_object_fossil'):
-            self._object_fossil = self.fossil.get_object_fossil()
+        if self._object_fossil is None:
+            if isinstance(self.fossil, Fossil):
+                self._object_fossil = self.fossil.get_object_fossil()
+            else:
+                self._object_fossil = DictKeyAttribute(self.fossil)
 
         return self._object_fossil
 
     def __getattr__(self, name):
-        if name in ('_object_fossil','fossil'):
-            raise AttributeError
+        if name in ('object_fossil','_object_fossil','fossil'): #,'get_attr_from_dict'):
+            raise AttributeError, name
 
-        return getattr(self.object_fossil.object, name)
+        try:
+            if isinstance(self.fossil, dict):
+                value = self.fossil[name]
+
+                if isinstance(value, dict):
+                    value = DictKeyAttribute(value)
+
+                return value
+            else:
+                return getattr(self.object_fossil.object, name)
+        except (AttributeError, KeyError):
+            raise AttributeError, name
 
     def __repr__(self):
-        return '<%s: %s #%s>'%(self.__class__.__name__, self.fossil.content_type.model, self.object_fossil.object.pk)
+        class_name = self.__class__.__name__
+
+        if isinstance(self.fossil, Fossil):
+            model_name = self.fossil.content_type.model
+            object_id = self.object_fossil.object.pk
+        else:
+            model_name = self.fossil.get('__model__', 'UnknownModel')
+            object_id = self.fossil.get('pk', 'UnknownID')
+
+        return '<%s: %s #%s>'%(class_name, model_name, object_id)
 
     def __unicode__(self):
-        return unicode(self.fossil)
+        if isinstance(self.fossil, Fossil):
+            return unicode(self.fossil)
+        else:
+            return self.fossil['__unicode__']
 
     def __str__(self):
-        return str(self.fossil)
+        if isinstance(self.fossil, Fossil):
+            return str(self.fossil)
+        else:
+            return self.fossil['__unicode__']
 
 class FossilSingleObjectDescriptor(ReverseSingleRelatedObjectDescriptor):
     """Take more details from the superclass."""
