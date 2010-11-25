@@ -79,6 +79,16 @@ class Fossil(models.Model):
             return manager.deserialize_for_fossil(data)
         else:
             return list(deserialize('json', data))[0]
+
+    def create_indexer(self, key, value):
+        """
+        Creates a fossil index for this fossil + given key and value
+        """
+        FossilIndexer.objects.get_or_create(
+                fossil=self,
+                key=key,
+                value=value,
+                )
     
 class FossilIndexer(models.Model):
     """
