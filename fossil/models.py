@@ -33,6 +33,21 @@ class FossilManager(models.Manager):
 
         return qs.filter(content_type=c_type, object_id=obj.pk).order_by('creation')
 
+    def indexed(self, **kwargs):
+        """
+        Find fossils by fossil indexes
+        """
+        qs = self.get_query_set()
+
+        # Find all indexes by given key and value
+        indexeds = FossilIndexer.objects.all()
+        for k,v in kwargs.items():
+            indexeds = indexeds.filter(**{'key': k, 'value': v})
+
+        pks = indexeds.distinct().values_list('fossil', flat=True)
+
+        return qs.filter(pk__in=pks)
+
 class Fossil(models.Model):
     objects = FossilManager()
 
@@ -65,6 +80,21 @@ class Fossil(models.Model):
         else:
             return list(deserialize('json', data))[0]
     
+class FossilIndexer(models.Model):
+    """
+    Class used to index fossil by field values. This is a sollution for querying
+    fossils withouth use search in the field 'serialized'. Of course, this is
+    because index + join is faster than like.
+    """
+    class Meta:
+        unique_together = (
+                ('fossil','key','value'),
+                )
+
+    fossil = models.ForeignKey('Fossil', related_name='indexeds')
+    key = models.CharField(max_length=250)
+    value = models.CharField(max_length=250)
+
 # SIGNALS
 from django.db.models import signals
 
