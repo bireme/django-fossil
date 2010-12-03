@@ -60,6 +60,7 @@ class Fossil(models.Model):
     object = GenericForeignKey()
     is_most_recent = models.BooleanField(blank=True, default=True, db_index=True)
     previous_revision = models.ForeignKey('self', null=True, blank=True)
+    revision_sequential = models.PositiveIntegerField(null=True, blank=True, db_index=True)
 
     def __unicode__(self):
         return self.display_text
@@ -135,6 +136,13 @@ def fossil_post_save(sender, instance, signal, **kwargs):
             instance.save()
         except Fossil.DoesNotExist:
             pass
+
+    # Gets next "revision_sequential"
+    if not instance.revision_sequential:
+        if not instance.previous_revision:
+            instance.revision_sequential = 1
+        elif instance.previous_revision.revision_sequential:
+            instance.revision_sequential = instance.previous_revision.revision_sequential + 1
 
 signals.post_save.connect(fossil_post_save, sender=Fossil)
 
