@@ -141,8 +141,10 @@ def fossil_post_save(sender, instance, signal, **kwargs):
     if not instance.revision_sequential:
         if not instance.previous_revision:
             instance.revision_sequential = 1
+            instance.save()
         elif instance.previous_revision.revision_sequential:
             instance.revision_sequential = instance.previous_revision.revision_sequential + 1
+            instance.save()
 
 signals.post_save.connect(fossil_post_save, sender=Fossil)
 
