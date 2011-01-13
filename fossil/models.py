@@ -91,6 +91,17 @@ class Fossil(models.Model):
                 value=value,
                 )
     
+class FossilIndexerManager(models.Manager):
+    def key(self, key, fail_silent=False):
+        try:
+            qs = self.get_query_set()
+            return qs.get(key=key)
+        except FossilIndexer.DoesNotExist:
+            if fail_silent:
+                return None
+            else:
+                raise
+
 class FossilIndexer(models.Model):
     """
     Class used to index fossil by field values. This is a sollution for querying
@@ -102,9 +113,11 @@ class FossilIndexer(models.Model):
                 ('fossil','key','value'),
                 )
 
+    objects = _default_manager = FossilIndexerManager()
+
     fossil = models.ForeignKey('Fossil', related_name='indexeds')
     key = models.CharField(max_length=250)
-    value = models.CharField(max_length=250)
+    value = models.CharField(max_length=250, null=True)
 
 # SIGNALS
 from django.db.models import signals
