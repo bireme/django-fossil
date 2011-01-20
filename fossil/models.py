@@ -49,9 +49,9 @@ class FossilManager(models.Manager):
         return qs.filter(pk__in=pks)
 
 class Fossil(models.Model):
-    objects = FossilManager()
+    objects = _default_manager = FossilManager()
 
-    id = models.CharField(max_length=64, primary_key=True)
+    id = models.CharField(max_length=64, primary_key=True) # Hash key
     serialized = models.TextField(blank=True, default='')
     display_text = models.TextField(blank=True, default='')
     creation = models.DateTimeField(blank=True, default=datetime.datetime.now)
@@ -81,15 +81,23 @@ class Fossil(models.Model):
         else:
             return list(deserialize('json', data))[0]
 
-    def create_indexer(self, key, value):
+    def set_indexer(self, key, value):
         """
-        Creates a fossil index for this fossil + given key and value
+        Creates (or updates if exists) a fossil index for this fossil + given key and value
         """
-        FossilIndexer.objects.get_or_create(
+        indexer, new = FossilIndexer.objects.get_or_create(
                 fossil=self,
                 key=key,
-                value=value,
+                defaults=dict(value=value),
                 )
+
+        if not new and unicode(value) != indexer.value:
+            indexer.value = value
+            indexer.save()
+
+    def unset_indexer(self, key):
+        """Removes an indexer by a given key"""
+        self.indexeds.filter(key=key).delete()
     
 class FossilIndexerManager(models.Manager):
     def key(self, key, fail_silent=False):
