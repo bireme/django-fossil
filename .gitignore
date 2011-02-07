@@ -1,3 +1,8 @@
 *.pyc
 .svn
 .bzr
+.*.swp
+
+build
+dist
+django_fossil.egg-info
