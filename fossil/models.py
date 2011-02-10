@@ -47,7 +47,7 @@ class FossilManager(models.Manager):
                 field, lookup = k.split('__',1)
                 filters = {'key': field, 'value__'+lookup: v}
             else:
-                filters = {'key': field, 'value': v}
+                filters = {'key': k, 'value': v}
 
             indexers = indexers.filter(**filters)
 
