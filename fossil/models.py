@@ -40,11 +40,11 @@ class FossilManager(models.Manager):
         qs = self.get_query_set()
 
         # Find all indexes by given key and value
-        indexeds = FossilIndexer.objects.all()
+        indexers = FossilIndexer.objects.all()
         for k,v in kwargs.items():
-            indexeds = indexeds.filter(**{'key': k, 'value': v})
+            indexers = indexers.filter(**{'key': k, 'value': v})
 
-        pks = indexeds.distinct().values_list('fossil', flat=True)
+        pks = indexers.distinct().values_list('fossil', flat=True)
 
         return qs.filter(pk__in=pks)
 
@@ -79,7 +79,7 @@ class Fossil(models.Model):
         if hasattr(manager, 'deserialize_for_fossil'):
             return manager.deserialize_for_fossil(data)
         else:
-            return list(deserialize('json', data))[0]
+            return list(deserialize('json', data))[0].object
 
     def set_indexer(self, key, value):
         """
@@ -97,7 +97,7 @@ class Fossil(models.Model):
 
     def unset_indexer(self, key):
         """Removes an indexer by a given key"""
-        self.indexeds.filter(key=key).delete()
+        self.indexers.filter(key=key).delete()
     
 class FossilIndexerManager(models.Manager):
     def key(self, key, fail_silent=False):
@@ -123,9 +123,12 @@ class FossilIndexer(models.Model):
 
     objects = _default_manager = FossilIndexerManager()
 
-    fossil = models.ForeignKey('Fossil', related_name='indexeds')
+    fossil = models.ForeignKey('Fossil', related_name='indexers')
     key = models.CharField(max_length=250)
     value = models.CharField(max_length=250, null=True)
+
+    def __unicode__(self):
+        return u'%s = %s'%(self.key, self.value)
 
 # SIGNALS
 from django.db.models import signals
