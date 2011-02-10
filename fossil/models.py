@@ -42,7 +42,14 @@ class FossilManager(models.Manager):
         # Find all indexes by given key and value
         indexers = FossilIndexer.objects.all()
         for k,v in kwargs.items():
-            indexers = indexers.filter(**{'key': k, 'value': v})
+            # Field is the first node before '__' if there is one in the key (k)
+            if '__' in k:
+                field, lookup = k.split('__',1)
+                filters = {'key': field, 'value__'+lookup: v}
+            else:
+                filters = {'key': field, 'value': v}
+
+            indexers = indexers.filter(**filters)
 
         pks = indexers.distinct().values_list('fossil', flat=True)
 
