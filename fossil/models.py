@@ -5,6 +5,11 @@ from django.core.serializers import serialize, deserialize
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.generic import GenericForeignKey
 
+try:
+    set
+except:
+    from sets import Set as set
+
 class FossilManager(models.Manager):
     def create_for_object(self, obj):
         if hasattr(obj, 'serialize_for_fossil'):
@@ -40,8 +45,8 @@ class FossilManager(models.Manager):
         qs = self.get_query_set()
 
         # Find all indexes by given key and value
-        indexers_reference = FossilIndexer.objects.all()
-        indexers = None
+        indexers_qs = FossilIndexer.objects.all()
+        indexers = []
         for k,v in kwargs.items():
             # Field is the first node before '__' if there is one in the key (k)
             if '__' in k:
@@ -50,12 +55,9 @@ class FossilManager(models.Manager):
             else:
                 filters = {'key': k, 'value': v}
 
-            if indexers:
-                indexers = indexers | indexers_reference.filter(**filters)
-            else:
-                indexers = indexers_reference.filter(**filters)
+            indexers.append(set(indexers_qs.filter(**filters).distinct().values_list('fossil', flat=True)))
 
-        pks = indexers.distinct().values_list('fossil', flat=True)
+        raise Exception(indexers)
 
         return qs.filter(pk__in=pks)
 
