@@ -40,7 +40,8 @@ class FossilManager(models.Manager):
         qs = self.get_query_set()
 
         # Find all indexes by given key and value
-        indexers = FossilIndexer.objects.all()
+        indexers_reference = FossilIndexer.objects.all()
+        indexers = None
         for k,v in kwargs.items():
             # Field is the first node before '__' if there is one in the key (k)
             if '__' in k:
@@ -49,7 +50,10 @@ class FossilManager(models.Manager):
             else:
                 filters = {'key': k, 'value': v}
 
-            indexers = indexers.filter(**filters)
+            if indexers:
+                indexers = indexers | indexers_reference.filter(**filters)
+            else:
+                indexers = indexers_reference.filter(**filters)
 
         pks = indexers.distinct().values_list('fossil', flat=True)
 
