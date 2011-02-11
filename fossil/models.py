@@ -55,9 +55,12 @@ class FossilManager(models.Manager):
             else:
                 filters = {'key': k, 'value': v}
 
+            # Appends lists of found fossil indexers (only their fossil PKs)
             indexers.append(set(indexers_qs.filter(**filters).distinct().values_list('fossil', flat=True)))
 
-        raise Exception(indexers)
+        # This reduce makes an intersection of all indexers, this means that only PKs found in
+        # ALL indexers will be in new list 'pks'
+        pks = reduce(lambda a,b: a.intersection(b), indexers)
 
         return qs.filter(pk__in=pks)
 
