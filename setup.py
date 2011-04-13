@@ -15,6 +15,6 @@ setup(
     author_email = 'opentrials-dev@listas.bireme.br',
     url = fossil.__url__,
     license = fossil.__license__,
-    packages = ['fossil'],
+    packages = ['fossil','fossil.migrations'],
 )
 
