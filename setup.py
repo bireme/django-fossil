@@ -16,5 +16,6 @@ setup(
     url = fossil.__url__,
     license = fossil.__license__,
     packages = ['fossil','fossil.migrations'],
+    zip_safe=False,
 )
 
